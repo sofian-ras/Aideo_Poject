@@ -77,3 +77,29 @@ def create_presigned_url(s3_key: str, expiration: int = 3600) -> str:
     except ClientError as e:
         print(f"Erreur de création d'URL pré-signée : {e}")
         return None
+    
+async def delete_file_from_s3(file_url: str):
+    """
+    Supprime le fichier du stockage d'objets en utilisant l'URL stockée en BDD.
+    """
+    s3_key = get_s3_key_from_url(file_url)
+
+    if not s3_key:
+        print(f"Alerte: Clé S3 non valide pour suppression, URL: {file_url}")
+        return
+
+    try:
+        # Supprime l'objet spécifié par la clé
+        s3_client.delete_object(Bucket=BUCKET_NAME, Key=s3_key)
+        print(f"Fichier S3/MinIO supprimé : {s3_key}")
+        
+    except ClientError as e:
+        # Une erreur 404 (NoSuchKey) signifie qu'il n'y a rien à supprimer, ce qui est acceptable.
+        if e.response['Error']['Code'] == 'NoSuchKey':
+            print(f"Alerte: Tentative de suppression d'une clé S3/MinIO inexistante : {s3_key}")
+        else:
+            print(f"Erreur critique lors de la suppression S3/MinIO : {e}")
+            raise Exception("Échec de la suppression du fichier du stockage.")
+    except Exception as e:
+        print(f"Erreur inattendue lors de la suppression : {e}")
+        raise Exception("Échec de la suppression du fichier du stockage.")

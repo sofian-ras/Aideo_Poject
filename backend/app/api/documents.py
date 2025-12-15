@@ -9,6 +9,7 @@ from app.models.document_analysis import DocumentResponse
 from app.models.base_models import Document, User # Import de User pour la dépendance
 from sqlalchemy.future import select
 from pydantic import Field # Nécessaire pour DetailedDocumentResponse
+from app.services.storage_service import create_presigned_url, delete_file_from_s3 # Import de delete_file_from_s3
 
 # Imports pour le stockage
 from app.services.storage_service import create_presigned_url 
@@ -158,3 +159,59 @@ async def scan_document_upload(
         "status": result.get("status", "success"),
         "message": result.get("message", "Document traité et sauvegardé avec succès.")
     }
+
+# -------------------------------------------------------------
+# NOUVELLE ROUTE : Suppression d'un document (DELETE /{document_id})
+# -------------------------------------------------------------
+
+@router.delete(
+    "/{document_id}", 
+    status_code=status.HTTP_204_NO_CONTENT, # Standard pour une suppression réussie
+    summary="Supprime un document et son fichier original du stockage"
+)
+async def delete_document(
+    document_id: Annotated[int, Path(description="L'ID entier du document à supprimer.")],
+    current_user: CurrentUser, 
+    db: DB_Session
+):
+    """
+    Supprime un document de la base de données et son fichier associé de MinIO/S3.
+    """
+    user_id = current_user.id
+    
+    # 1. Recherche du document
+    result = await db.execute(
+        select(Document)
+        .filter(Document.id == document_id)
+    )
+    document = result.scalars().first()
+    
+    if not document:
+        # Si le document n'existe pas, on considère l'opération réussie (idempotence)
+        return
+
+    # 2. Vérification des droits d'accès
+    if document.owner_id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé. Ce document ne vous appartient pas.")
+
+    # 3. Suppression du fichier physique de MinIO/S3
+    if document.file_url:
+        # Tente la suppression du fichier, mais ne lève pas d'erreur si la suppression S3 échoue
+        # L'enregistrement BDD sera toujours supprimé
+        try:
+            await delete_file_from_s3(document.file_url)
+        except Exception as e:
+            # Enregistrement de l'erreur, mais on continue pour supprimer la référence BDD
+            print(f"Erreur (non critique) lors de la suppression MinIO pour doc ID {document_id}: {e}")
+
+    # 4. Suppression de l'enregistrement BDD
+    try:
+        await db.delete(document)
+        await db.commit()
+    except Exception as e:
+        print(f"Erreur de BDD lors de la suppression: {e}")
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Échec de la suppression dans la base de données.")
+    
+    # HTTP 204 No Content ne nécessite pas de corps de réponse
+    return
