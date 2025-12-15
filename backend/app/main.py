@@ -6,6 +6,7 @@ from app.api import documents
 from app.core.database import init_db
 from app.models import base_models # Nécessaire pour que SQLAlchemy trouve les modèles lors de l'init_db
 from app.services.storage_service import check_bucket_existence # Importation du service de vérification MinIO/S3
+from app.api import auth
 
 # Nous allons inclure les routeurs spécifiques une fois qu'ils seront créés
 # from app.api import auth # Laissez cette ligne pour l'authentification future
@@ -48,6 +49,7 @@ def read_root():
     return {"message": "Bienvenue sur l'API Aideo. Le service est opérationnel."}
 
 # Inclure les routeurs des fonctionnalités
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentification"])
 app.include_router(documents.router, prefix="/api/v1/documents", tags=["Documents & Scan"])
 # app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentification"]) # À décommenter plus tard
 

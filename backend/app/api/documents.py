@@ -1,23 +1,26 @@
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status, Path
+# aideo/backend/app/api/documents.py (Mise à jour pour l'authentification JWT)
+
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status, Path, Header
 from app.services.ocr_service import process_ocr_and_ai 
 from app.core.database import get_db_session
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Annotated, List
-from app.models.document_analysis import DocumentResponse # Import du schéma de réponse
-from app.models.base_models import Document
+from typing import Annotated, List, Optional
+from app.models.document_analysis import DocumentResponse 
+from app.models.base_models import Document, User # Import de User pour la dépendance
 from sqlalchemy.future import select
+from pydantic import Field # Nécessaire pour DetailedDocumentResponse
 
 # Imports pour le stockage
 from app.services.storage_service import create_presigned_url 
 
-# --- STUBS TEMPORAIRES (À Remplacer par l'Authentification réelle) ---
-async def get_current_user_stub():
-    # Simule un utilisateur connecté (ID requis pour la BDD)
-    return {"user_id": "893c834a-9b4f-4d2a-a9e3-82d22b67e00e", "email": "aideo@user.com"}
+# Imports de Sécurité
+from app.core.security import get_current_user_from_token # NOUVELLE DÉPENDANCE
 
-CurrentUser = Annotated[dict, Depends(get_current_user_stub)]
+# --- DÉPENDANCES ET TYPES MIS À JOUR ---
+# L'utilisateur actuel est maintenant l'objet User SQLAlchemy, récupéré par JWT
+CurrentUser = Annotated[User, Depends(get_current_user_from_token)] 
 DB_Session = Annotated[AsyncSession, Depends(get_db_session)]
-# -------------------------------------------------------------------
+# ----------------------------------------
 
 router = APIRouter()
 
@@ -31,13 +34,14 @@ router = APIRouter()
     summary="Liste tous les documents de l'utilisateur"
 )
 async def list_user_documents(
-    current_user: CurrentUser,
+    current_user: CurrentUser, # Utilisateur authentifié requis
     db: DB_Session
 ):
     """
     Récupère la liste de tous les documents scannés appartenant à l'utilisateur connecté.
     """
-    user_id = current_user["user_id"]
+    # L'ID de l'utilisateur est accessible directement via l'objet User
+    user_id = current_user.id
     
     try:
         result = await db.execute(
@@ -57,7 +61,7 @@ async def list_user_documents(
     return documents
 
 # -------------------------------------------------------------
-# NOUVELLE ROUTE : Récupération d'un document spécifique (GET /{document_id})
+# Route : Récupération d'un document spécifique (GET /{document_id})
 # -------------------------------------------------------------
 
 class DetailedDocumentResponse(DocumentResponse):
@@ -73,13 +77,13 @@ class DetailedDocumentResponse(DocumentResponse):
 )
 async def get_document_details(
     document_id: Annotated[int, Path(description="L'ID entier du document à récupérer.")],
-    current_user: CurrentUser,
+    current_user: CurrentUser, # Utilisateur authentifié requis
     db: DB_Session
 ):
     """
     Récupère un document spécifique, vérifie les droits et génère un lien de téléchargement.
     """
-    user_id = current_user["user_id"]
+    user_id = current_user.id
     
     # 1. Recherche du document en BDD
     result = await db.execute(
@@ -99,15 +103,11 @@ async def get_document_details(
     # 3. Génération de l'URL de téléchargement sécurisée
     download_url = None
     if document.file_url:
-        # create_presigned_url est synchrone, on l'appelle directement
         download_url = create_presigned_url(document.file_url)
-        # Si la génération échoue, download_url est None
     
     # 4. Conversion et ajout des champs supplémentaires pour la réponse détaillée
     # On utilise le DocumentResponse comme base
     response_data = DetailedDocumentResponse.model_validate(document)
-    
-    # Mise à jour de l'URL de téléchargement
     response_data.download_url = download_url
     
     return response_data
@@ -119,7 +119,7 @@ async def get_document_details(
 @router.post("/scan")
 async def scan_document_upload(
     file: Annotated[UploadFile, File(description="Le fichier image ou PDF du document à analyser.")],
-    current_user: CurrentUser,
+    current_user: CurrentUser, # Utilisateur authentifié requis
     db: DB_Session
 ):
     """
@@ -138,16 +138,14 @@ async def scan_document_upload(
             file_content=file_content,
             file_name=file.filename,
             content_type=file.content_type,
-            user_id=current_user["user_id"],
+            user_id=current_user.id, # Utilisation de l'ID utilisateur réel
             db_session=db
         )
         
     except HTTPException:
-        # Laisser passer les HTTPException spécifiques levées par les services
         raise
     except Exception as e:
         print(f"Erreur de traitement (OCR/Sauvegarde) : {e}")
-        # Renvoyer une erreur générique en cas d'échec non géré
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Échec du traitement ou de la sauvegarde du document: {e}",
