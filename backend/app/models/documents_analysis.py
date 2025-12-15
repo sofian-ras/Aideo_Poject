@@ -21,3 +21,17 @@ class AIAnalysisResult(BaseModel):
     dates: List[DateDetail] = Field(..., description="Liste des dates importantes avec leur description.")
     montants: List[AmountDetail] = Field(..., description="Liste des montants clés trouvés.")
     raw_text: Optional[str] = Field(None, description="Le texte brut utilisé pour l'analyse (pour debug/vérification).")
+
+class DocumentUpdate(BaseModel):
+    """
+    Schéma des champs autorisés à être mis à jour. Tous les champs sont facultatifs.
+    """
+    file_name: Optional[str] = Field(None, description="Nouveau nom du fichier.")
+    
+    # Ces champs pourront être mis à jour plus tard par l'IA ou manuellement
+    ai_type: Optional[str] = Field(None, description="Nouveau type de document.")
+    ai_resume: Optional[str] = Field(None, description="Nouveau résumé.")
+
+    # Permet de n'envoyer que les champs qu'on veut changer
+    class Config:
+        extra = "forbid" # Interdit les champs non définis
