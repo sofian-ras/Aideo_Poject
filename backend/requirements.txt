@@ -1,0 +1,23 @@
+# Fichier des dépendances de production pour l'API Aideo (backend)
+
+# Cadre web asynchrone
+fastapi[all]
+uvicorn
+
+# Base de données PostgreSQL
+sqlalchemy
+asyncpg # Driver SQLAlchemy pour async
+
+# Stockage d'objets (MinIO / S3)
+boto3
+
+# OCR
+Pillow
+pytesseract
+
+# Sécurité & Authentification
+passlib[bcrypt]
+python-jose[cryptography]
+
+# Gestion des dépendances (peut être utilisé par certains outils)
+python-dotenv
