@@ -1,0 +1,36 @@
+# Fichiers de configuration spécifiques à l'OS
+.DS_Store
+Thumbs.db
+
+# Fichiers d'environnement virtuel Python
+# Ceci va ignorer le dossier venv/
+venv/
+__pycache__/
+*.pyc
+.mypy_cache
+.pytest_cache
+
+# Fichiers de cache de l'IDE (VS Code, PyCharm)
+.idea/
+.vscode/
+
+# Fichiers de Logs et d'environnement
+*.log
+.env
+.env.*
+
+# Fichiers sensibles et Clés API
+# IMPORTANT : Ne jamais commiter les clés API réelles ou les secrets
+# Les fichiers de configuration Docker qui contiennent des secrets
+.docker/
+.dockerignore
+
+# Fichiers générés par Docker (volumes locaux)
+# Si vous utilisez des volumes de données
+minio_data/
+postgres_data/
+
+# Fichiers spécifiques au projet React Native / Mobile (à compléter)
+mobile/node_modules/
+mobile/ios/build/
+mobile/android/build/

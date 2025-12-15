@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  # 1. Base de données PostgreSQL
+  db:
+    image: postgres:15-alpine
+    container_name: aideo_db
+    restart: always
+    environment:
+      # Ces variables doivent correspondre à la chaîne DATABASE_URL dans database.py
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: aideo_db
+    ports:
+      # Mappe le port 5432 du conteneur au port 5432 de votre machine locale
+      - "5432:5432"
+    volumes:
+      # Persistance des données de la base
+      - postgres_data:/var/lib/postgresql/data/
+
+  # 2. API Backend (FastAPI)
+  api:
+    # Indique à Docker de construire l'image à partir du Dockerfile dans le dossier backend/
+    build: ./backend
+    container_name: aideo_api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      # Monte le code local dans le conteneur, permettant le rechargement à chaud
+      - ./backend/app:/app/app
+      - ./backend/requirements.txt:/app/requirements.txt
+    ports:
+      # Mappe le port 8000 du conteneur au port 8000 de votre machine locale
+      - "8000:8000"
+    environment:
+      # L'URL de la BDD vue par le conteneur API (utilise le nom du service 'db')
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/aideo_db
+      # On force l'API à attendre que la BDD soit prête
+      PYTHONUNBUFFERED: 1
+    depends_on:
+      - db # S'assure que le conteneur 'db' démarre avant 'api'
+
+volumes:
+  postgres_data:
