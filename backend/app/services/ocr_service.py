@@ -1,16 +1,14 @@
-# aideo/backend/app/services/ocr_service.py
-
 import io
 from PIL import Image
 import pytesseract
 from fastapi import HTTPException, status
 from typing import Dict, Any
-
-# Imports pour la BDD et le Stockage
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.models.base_models import Document, User
-from app.services.storage_service import upload_file_to_s3 
+from app.services.storage_service import upload_file_to_s3
+
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 
 # --- OCR : Extraction du texte ---
