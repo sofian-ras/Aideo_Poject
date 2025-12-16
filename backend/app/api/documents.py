@@ -1,11 +1,9 @@
-# aideo/backend/app/api/documents.py
-
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status, Path, Header
 from app.services.ocr_service import process_ocr_and_ai 
 from app.core.database import get_db_session
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Annotated, List, Optional
-from app.models.document_analysis import DocumentResponse, DocumentUpdate # Import de DocumentUpdate
+from app.models.document_analysis import DocumentResponse, DocumentUpdate 
 from app.models.base_models import Document, User 
 from sqlalchemy.future import select
 from pydantic import Field 
@@ -16,9 +14,9 @@ from app.services.storage_service import create_presigned_url, delete_file_from_
 # Imports de Sécurité
 from app.core.security import get_current_user_from_token 
 
-# --- DÉPENDANCES ET TYPES ---
-CurrentUser = Annotated[User, Depends(get_current_user_from_token)] 
-DB_Session = Annotated[AsyncSession, Depends(get_db_session)]
+# --- DÉPENDANCES ET TYPES (Les alias Annotated sont supprimés pour la fiabilité des tests) ---
+# CurrentUser = Annotated[User, Depends(get_current_user_from_token)] 
+# DB_Session = Annotated[AsyncSession, Depends(get_db_session)]
 # ---------------------------
 
 router = APIRouter()
@@ -41,8 +39,9 @@ class DetailedDocumentResponse(DocumentResponse):
     summary="Liste tous les documents de l'utilisateur"
 )
 async def list_user_documents(
-    current_user: CurrentUser, 
-    db: DB_Session
+    # Injection directe des dépendances pour la fiabilité (SOLUTION DU PROBLÈME)
+    current_user: User = Depends(get_current_user_from_token),
+    db: AsyncSession = Depends(get_db_session)
 ):
     """
     Récupère la liste de tous les documents scannés appartenant à l'utilisateur connecté.
@@ -77,8 +76,9 @@ async def list_user_documents(
 )
 async def get_document_details(
     document_id: Annotated[int, Path(description="L'ID entier du document à récupérer.")],
-    current_user: CurrentUser, 
-    db: DB_Session
+    # Injection directe des dépendances
+    current_user: User = Depends(get_current_user_from_token), 
+    db: AsyncSession = Depends(get_db_session)
 ):
     """
     Récupère un document spécifique, vérifie les droits et génère un lien de téléchargement.
@@ -122,8 +122,9 @@ async def get_document_details(
 async def update_document(
     document_id: Annotated[int, Path(description="L'ID entier du document à mettre à jour.")],
     update_data: DocumentUpdate, 
-    current_user: CurrentUser, 
-    db: DB_Session
+    # Injection directe des dépendances
+    current_user: User = Depends(get_current_user_from_token), 
+    db: AsyncSession = Depends(get_db_session)
 ):
     """
     Met à jour les métadonnées du document spécifié (nom, résumé IA, etc.).
@@ -175,8 +176,9 @@ async def update_document(
 @router.post("/scan")
 async def scan_document_upload(
     file: Annotated[UploadFile, File(description="Le fichier image ou PDF du document à analyser.")],
-    current_user: CurrentUser, 
-    db: DB_Session
+    # Injection directe des dépendances
+    current_user: User = Depends(get_current_user_from_token), 
+    db: AsyncSession = Depends(get_db_session)
 ):
     """
     Route principale : Upload, Stockage, OCR et Sauvegarde du document.
@@ -223,8 +225,9 @@ async def scan_document_upload(
 )
 async def delete_document(
     document_id: Annotated[int, Path(description="L'ID entier du document à supprimer.")],
-    current_user: CurrentUser, 
-    db: DB_Session
+    # Injection directe des dépendances
+    current_user: User = Depends(get_current_user_from_token), 
+    db: AsyncSession = Depends(get_db_session)
 ):
     """
     Supprime un document de la base de données et son fichier associé de MinIO/S3.

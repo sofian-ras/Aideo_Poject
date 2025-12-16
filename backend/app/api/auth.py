@@ -1,3 +1,5 @@
+# aideo/backend/app/api/auth.py (CORRIGÉ)
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import Annotated
@@ -7,14 +9,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.core.database import get_db_session
 from app.models.base_models import User
-from app.models.auth import UserCreate, UserLogin, Token, UserOut
+from app.models.auth import UserCreate, Token, UserOut
 import uuid
 
 # Imports de Sécurité
 from app.core.security import get_password_hash, verify_password, create_access_token
 
-# Dépendances
-DB_Session = Annotated[AsyncSession, Depends(get_db_session)]
+# Suppression de l'alias DB_Session pour éviter l'erreur de parsing de FastAPI lors du test
+# DB_Session = Annotated[AsyncSession, Depends(get_db_session)] 
+
 router = APIRouter()
 
 # -------------------------------------------------------------------
@@ -22,7 +25,11 @@ router = APIRouter()
 # -------------------------------------------------------------------
 
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED, summary="Inscription d'un nouvel utilisateur")
-async def register_user(user_data: UserCreate, db: DB_Session):
+async def register_user(
+    user_data: UserCreate, 
+    # Injection directe de la dépendance (CORRECTION)
+    db: AsyncSession = Depends(get_db_session)
+):
     """
     Crée un nouvel utilisateur après vérification de l'unicité de l'email.
     """
@@ -69,8 +76,9 @@ async def register_user(user_data: UserCreate, db: DB_Session):
 
 @router.post("/login", response_model=Token, summary="Connexion de l'utilisateur et obtention du jeton JWT")
 async def login_for_access_token(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()], # Utilise le formulaire standard OAuth2 (username/password)
-    db: DB_Session
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()], 
+    # Injection directe de la dépendance (CORRECTION)
+    db: AsyncSession = Depends(get_db_session)
 ):
     """
     Authentifie l'utilisateur via email et mot de passe et retourne un jeton d'accès JWT.
@@ -84,7 +92,6 @@ async def login_for_access_token(
 
     # 2. Vérification de l'utilisateur et du mot de passe
     if not user or not verify_password(form_data.password, user.hashed_password):
-        # Utiliser un message générique pour ne pas divulguer si l'email ou le mot de passe est faux
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Identifiants incorrects.",
@@ -92,7 +99,6 @@ async def login_for_access_token(
         )
 
     # 3. Création du jeton d'accès
-    # Le 'sub' (subject) est une convention, ici nous stockons l'ID de l'utilisateur
     access_token = create_access_token(data={"sub": user.id})
     
     # 4. Retour du jeton

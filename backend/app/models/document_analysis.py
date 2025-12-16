@@ -11,7 +11,7 @@ class DocumentResponse(BaseModel):
     owner_id: str
     file_name: str
     content_type: str
-    file_url: Optional[str] = None # L'URL sera générée juste avant d'être envoyée
+    file_url: Optional[str] = None 
     
     # Données extraites par OCR/IA
     raw_text: Optional[str] = None
@@ -24,11 +24,10 @@ class DocumentResponse(BaseModel):
     created_at: datetime
     
     class Config:
-        from_attributes = True # Permet de convertir directement l'objet ORM (SQLAlchemy) en Pydantic
+        from_attributes = True 
 
 
-# 2. Modèle pour la création rapide (utilisé par la route /scan)
-# Ce modèle est simple et utilisé pour l'insertion initiale en BDD après l'upload.
+# 2. Modèle pour la création rapide 
 class DocumentCreation(BaseModel):
     file_name: str
     content_type: str
