@@ -1,13 +1,10 @@
-# aideo/backend/app/models/base_models.py
-
+from .base import Base
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean, JSON
 from sqlalchemy.orm import relationship
-from app.core.database import Base # Importe la Base définie dans database.py
 import uuid
 
 # --- 1. Modèle Utilisateur ---
-
 class User(Base):
     __tablename__ = "users"
     
@@ -26,7 +23,6 @@ class User(Base):
 
 
 # --- 2. Modèle Document ---
-
 class Document(Base):
     __tablename__ = "documents"
     
@@ -45,12 +41,11 @@ class Document(Base):
     raw_text = Column(Text) # Le texte brut de l'OCR
     
     # Les champs structurés de l'IA (stockés en JSON pour la flexibilité)
-    # Nous pourrions faire des tables séparées, mais JSON est plus simple pour l'MVP
-    ai_type = Column(String, nullable=True)      # Ex: "Facture", "Impôts"
-    ai_resume = Column(Text, nullable=True)      # Résumé IA
-    ai_actions = Column(JSON, default=[])        # Liste des actions
-    ai_dates = Column(JSON, default=[])          # Liste des dates structurées
-    ai_montants = Column(JSON, default=[])       # Liste des montants structurés
+    ai_type = Column(String, nullable=True)     # Ex: "Facture", "Impôts"
+    ai_resume = Column(Text, nullable=True)     # Résumé IA
+    ai_actions = Column(JSON, default=[])       # Liste des actions
+    ai_dates = Column(JSON, default=[])         # Liste des dates structurées
+    ai_montants = Column(JSON, default=[])      # Liste des montants structurés
     
     created_at = Column(DateTime, default=datetime.utcnow)
     

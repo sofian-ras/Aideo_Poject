@@ -1,11 +1,15 @@
-# aideo/backend/app/core/security.py
-
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from jose import jwt, JWTError
 from fastapi import HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
 import os
 from typing import Optional, Dict, Any
+
+# IMPORTS MANQUANTS AJOUTÉS
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from app.models.base_models import User # Pour le typage de la fonction de dépendance
 
 # --- 1. Configuration des secrets et algorithmes ---
 
@@ -13,10 +17,8 @@ from typing import Optional, Dict, Any
 password_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Secrets et paramètres pour les jetons JWT
-# En production, ces secrets doivent être des chaînes très longues et non triviales !
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "CLE_SECRETE_TRES_COMPLEXE_A_REMPLACER_EN_PROD")
 ALGORITHM = "HS256"
-# Durée de validité du jeton (par exemple, 60 minutes)
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
 
 
@@ -34,7 +36,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 # --- 3. Fonctions de Gestion des Jetons JWT ---
 
 def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None):
-    """Crée un jeton d'accès JWT."""
+    """Crée un jeton d'accès JWT. """
     to_encode = data.copy()
     
     # Définition de l'expiration
@@ -66,17 +68,12 @@ def decode_access_token(token: str) -> Dict[str, Any]:
 
 # --- 4. Fonction de Dépendance pour FastAPI ---
 
-from fastapi.security import OAuth2PasswordBearer
-from app.models.base_models import User
-from sqlalchemy.future import select
-
 # Définit le schéma OAuth2 pour l'authentification "Bearer"
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login") # Point d'accès pour obtenir le token
 
 async def get_current_user_from_token(token: str, db_session: AsyncSession) -> User:
     """
     Dépendance FastAPI : Décode le jeton et récupère l'utilisateur en BDD.
-    Ceci remplace notre ancien 'get_current_user_stub'.
     """
     
     # 1. Décodage et Validation du jeton

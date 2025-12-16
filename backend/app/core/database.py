@@ -1,26 +1,31 @@
-# aideo/backend/app/core/database.py
-
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import sessionmaker
 import os
-
-# NOTE : En environnement de production/développement, cette URL doit venir des variables d'environnement
-# Nous utilisons ici une valeur par défaut pour le développement local.
+from app.models.base import Base
+# NOTE : Les valeurs par défaut sont ici pour le cas où .env ou Docker Compose ne fonctionnent pas
 DATABASE_URL = os.getenv(
     "DATABASE_URL", 
-    "postgresql+asyncpg://postgres:postgres@localhost:5432/aideo_db"
+    "postgresql+asyncpg://postgres:postgres@db:5432/aideo_db" # Utilisation de 'db' pour l'interne Docker
+)
+TEST_DATABASE_URL = os.getenv(
+    "TEST_DATABASE_URL",
+    "postgresql+asyncpg://postgres:postgres@db:5432/aideo_test_db" # Base de données de test
 )
 
+# Détermine l'URL à utiliser (Logique critique pour les tests unitaires)
+if os.environ.get("TESTING") == "True":
+    ASYNC_DATABASE_URL = TEST_DATABASE_URL
+else:
+    ASYNC_DATABASE_URL = DATABASE_URL
+    
 # 1. Création du moteur de connexion asynchrone
-# echo=True pour afficher les requêtes SQL générées (utile pour le debug)
-engine = create_async_engine(DATABASE_URL, echo=True)
+# Utilisation de ASYNC_DATABASE_URL pour se connecter soit à la BDD de prod, soit à celle de test.
+engine = create_async_engine(ASYNC_DATABASE_URL, echo=False)
 
-# 2. Définition de la base pour les modèles
-# Toutes les classes de modèles ORM hériteront de cette Base.
-Base = declarative_base()
+# 2. Suppression de la ligne incorrecte : Base = declarative_base() 
+# La classe Base est importée depuis base_models.py, elle ne doit pas être redéfinie ici.
 
 # 3. Création du générateur de sessions asynchrones
-# expire_on_commit=False pour éviter de charger/décharger des objets après un commit
 AsyncSessionLocal = sessionmaker(
     engine, 
     class_=AsyncSession, 
@@ -33,9 +38,9 @@ async def get_db_session():
     async with AsyncSessionLocal() as session:
         yield session
 
-# 5. Fonction pour créer toutes les tables (à appeler au démarrage/setup)
+# 5. Fonction pour créer toutes les tables
 async def init_db():
     """Crée toutes les tables définies par les modèles."""
     async with engine.begin() as conn:
-        # Permet à SQLAlchemy de créer les tables si elles n'existent pas
+        # Utilise la Base importée pour créer les tables
         await conn.run_sync(Base.metadata.create_all)
