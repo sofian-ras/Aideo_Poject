@@ -31,7 +31,11 @@ async def analyze_document_with_ai(document_text: str) -> Dict[str, Any]:
         "model": AI_MODEL,
         "prompt": full_prompt,
         "stream": False,
-        "format": "json" # Force Ollama à répondre en JSON
+        "format": "json",
+        "options": {
+            "num_predict": 200,  # Limite la longueur de la réponse pour gagner du temps
+            "temperature": 0     # Rend l'IA plus rapide et plus précise
+        }
     }
 
     try:
