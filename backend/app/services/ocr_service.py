@@ -8,8 +8,15 @@ from sqlalchemy.future import select
 from app.models.base_models import Document, User
 from app.services.storage_service import upload_file_to_s3
 
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+import os
+import pytesseract
 
+# Si on est dans Docker (Linux), le chemin est /usr/bin/tesseract
+# Sinon, on garde ton chemin Windows pour tes tests locaux hors Docker
+if os.name == 'nt':  # 'nt' veut dire Windows
+    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+else:  # Sinon, on est sur Linux/Docker
+    pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
 
 # --- OCR : Extraction du texte ---
 

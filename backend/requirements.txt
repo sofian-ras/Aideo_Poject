@@ -3,6 +3,7 @@ fastapi
 uvicorn[standard]
 pydantic-settings
 python-jose[cryptography]
+bcrypt==4.0.1
 passlib[bcrypt]
 sqlalchemy
 asyncpg
