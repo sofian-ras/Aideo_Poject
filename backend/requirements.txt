@@ -5,6 +5,7 @@ pydantic-settings
 python-jose[cryptography]
 bcrypt==4.0.1
 passlib[bcrypt]
+httpx==0.27.0
 sqlalchemy
 asyncpg
 python-multipart

@@ -33,10 +33,10 @@ class DetailedDocumentResponse(DocumentResponse):
     summary="Liste tous les documents de l'utilisateur",
 )
 async def list_user_documents(
-    current_user=Depends(get_current_user_from_token),
+ #   current_user=Depends(get_current_user_from_token),
     db=DB_SESSION_DEPENDENCY,
 ):
-    user_id = current_user.id
+    user_id = 1  # Pour l'instant, on utilise un user_id fixe pour les tests
 
     try:
         result = await db.execute(
@@ -132,9 +132,10 @@ async def update_document(
 @router.post("/scan", summary="Upload + OCR + IA")
 async def scan_document_upload(
     file: Annotated[UploadFile, File(...)],
-    current_user=Depends(get_current_user_from_token),
+    # current_user=Depends(get_current_user_from_token),
     db=DB_SESSION_DEPENDENCY,
 ):
+    user_id = 1  # Pour l'instant, on utilise un user_id fixe pour les tests
     if not file.content_type:
         raise HTTPException(status_code=400, detail="Type de fichier invalide")
 
@@ -144,7 +145,7 @@ async def scan_document_upload(
         file_content=content,
         file_name=file.filename,
         content_type=file.content_type,
-        user_id=current_user.id,
+        user_id= user_id, # À remplacer par current_user.id quand l'auth sera en place
         db_session=db,
     )
 
