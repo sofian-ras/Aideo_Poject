@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.models.base_models import Document, User
 from app.services.storage_service import upload_file_to_s3
-
+from app.services.ai_service import analyze_document_with_ai
 import os
 import pytesseract
 
@@ -74,53 +74,52 @@ async def process_ocr_and_ai(
     file_name: str, 
     content_type: str, 
     user_id: str,
-    db_session: AsyncSession # NOUVEAU : Session BDD requise
+    db_session: AsyncSession
 ) -> Dict[str, Any]:
-    """
-    Logique métier : Stockage, OCR, et préparation des données pour la BDD.
-    """
     
-    # 0. S'assurer que l'utilisateur existe (IMPORTANT pour la clé étrangère)
+    # 0. S'assurer que l'utilisateur existe
     await create_stub_user_if_not_exists(user_id, db_session)
     
-    # 1. Upload vers le stockage (S3/MinIO)
-    file_url = None
+    # 1. Upload vers MinIO
     try:
-        # Appelle le service d'upload
         file_url = await upload_file_to_s3(file_content, user_id, file_name)
     except Exception as e:
-        # Si l'upload échoue, on arrête
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
-                            detail=f"Échec critique de l'upload du fichier vers le stockage: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur stockage: {e}")
 
     # 2. OCR : Extraction du texte brut
     raw_text = await perform_ocr(file_content, content_type)
     
     # 3. Validation de l'OCR
     if not raw_text.strip():
-        # Devrait idéalement supprimer le fichier uploadé si l'OCR échoue
-        return {
-            "status": "fail",
-            "message": "Le texte n'a pas pu être extrait correctement (OCR vide).",
-        }
+        return {"status": "fail", "message": "OCR vide."}
+
+    # --- NOUVEAU : APPEL À L'IA (OLLAMA) ---
+    ai_data = await analyze_document_with_ai(raw_text)
+    if not ai_data:
+        ai_data = {} # Évite les erreurs si l'IA échoue
+    # ---------------------------------------
     
-    # 4. Création de l'objet Document et Sauvegarde en BDD
+    # 4. Création de l'objet Document avec les données de l'IA
     new_document = Document(
         owner_id=user_id,
         file_name=file_name,
         content_type=content_type,
-        file_url=file_url, # Lien vers le fichier stocké
+        file_url=file_url,
         raw_text=raw_text,
-        # Les champs IA restent nuls pour cette phase
+        # On injecte ici les résultats de l'IA locale
+        ai_type=ai_data.get("type"),
+        ai_resume=ai_data.get("resume"),
+        ai_actions=ai_data.get("actions", []),
+        ai_dates=ai_data.get("dates", []),
+        ai_montants=ai_data.get("montants", [])
     )
 
     db_session.add(new_document)
     await db_session.commit()
-    await db_session.refresh(new_document) # Pour obtenir l'ID généré
+    await db_session.refresh(new_document)
     
-    # 5. Retour du succès
     return {
       "document_id": new_document.id,
       "status": "success",
-      "message": "Document scanné, stocké et sauvegardé en base de données.",
+      "message": "Document scanné et analysé par l'IA avec succès.",
     }
