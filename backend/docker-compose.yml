@@ -26,7 +26,7 @@ services:
     ports:
       - "9000:9000"  # API
       - "9001:9001"  # WebUI
-    command: server /data
+    command: server /data --console-address ":9001"
 
   # Service de l'application FastAPI
   backend:
@@ -43,10 +43,22 @@ services:
       AWS_ACCESS_KEY_ID: aideo_access_key
       AWS_SECRET_ACCESS_KEY: aideo_secret_key
       BUCKET_NAME: aideo-documents
+      OLLAMA_URL: http://ollama:11434
+      AI_MODEL: mistral
     depends_on:
       - db
       - minio
+# Service IA Locale
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: always
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
 
 volumes:
   postgres_data:
   minio_data:
+  ollama_data:
